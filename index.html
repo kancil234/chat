@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Window Chat</title>
+    <title>Cross-Computer Chat</title>
+    <script src="https://cdn.jsdelivr.net/npm/express@4.17.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ws@8.2.3"></script>
+    <script src="https://cdn.jsdelivr.net/npm/http@0.0.1"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -19,15 +22,33 @@
             height: 100vh;
         }
         
+        .container {
+            display: flex;
+            height: 100%;
+        }
+        
+        .server-panel {
+            width: 300px;
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .chat-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
         .chat-container {
             display: flex;
             flex-direction: column;
-            max-width: 1000px;
+            max-width: 100%;
             margin: 0 auto;
             width: 100%;
             height: 100%;
             background-color: white;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
         
         .chat-header {
@@ -53,6 +74,20 @@
             border-radius: 4px;
             margin-left: 10px;
             width: 150px;
+        }
+        
+        .connection-status {
+            font-size: 0.8em;
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+        
+        .connected {
+            background-color: #4CAF50;
+        }
+        
+        .disconnected {
+            background-color: #f44336;
         }
         
         .chat-messages {
@@ -132,219 +167,349 @@
             background-color: #3a6698;
         }
         
-        .typing-indicator {
-            padding: 5px 15px;
-            background-color: #e5e5ea;
-            border-radius: 15px;
-            align-self: flex-start;
-            margin-bottom: 10px;
-            display: none;
+        .server-log {
+            font-family: monospace;
+            font-size: 0.9em;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            word-break: break-all;
         }
         
-        .typing-indicator span {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background-color: #666;
-            border-radius: 50%;
-            margin: 0 2px;
-            animation: typing 1s infinite ease-in-out;
+        .server-controls {
+            margin-top: 20px;
         }
         
-        .typing-indicator span:nth-child(2) {
-            animation-delay: 0.2s;
+        button {
+            padding: 8px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
         }
         
-        .typing-indicator span:nth-child(3) {
-            animation-delay: 0.4s;
+        button:hover {
+            background-color: #2980b9;
         }
         
-        @keyframes typing {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
+        #server-url {
+            width: 100%;
+            padding: 8px;
+            margin-top: 10px;
+            font-family: monospace;
         }
         
-        @media (max-width: 600px) {
-            .message {
-                max-width: 85%;
-            }
-            
-            .chat-container {
-                height: 100vh;
-            }
-            
-            .chat-header {
+        @media (max-width: 768px) {
+            .container {
                 flex-direction: column;
-                align-items: flex-start;
             }
             
-            .username-container {
-                margin-top: 10px;
+            .server-panel {
                 width: 100%;
-            }
-            
-            #username-input {
-                width: 100%;
-                margin-left: 0;
+                height: 200px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-header">
-            <span>Multi-Window Chat</span>
-            <div class="username-container">
-                <span>Your name:</span>
-                <input type="text" id="username-input" placeholder="Enter your name" value="User">
+    <div class="container">
+        <div class="server-panel">
+            <h2>Chat Server</h2>
+            <div class="server-controls">
+                <button id="start-server">Start Server</button>
+                <button id="stop-server" disabled>Stop Server</button>
             </div>
+            <div id="server-status">Status: Not running</div>
+            <input type="text" id="server-url" readonly placeholder="Server URL will appear here">
+            <div class="server-log" id="server-log"></div>
         </div>
         
-        <div class="chat-messages" id="chat-messages">
-            <div class="message received">
-                Welcome to the multi-window chat! Open this page in another window/tab to start chatting.
-                <div class="message-info">System • Just now</div>
+        <div class="chat-panel">
+            <div class="chat-container">
+                <div class="chat-header">
+                    <span>Cross-Computer Chat</span>
+                    <div class="username-container">
+                        <span>Your name:</span>
+                        <input type="text" id="username-input" placeholder="Enter your name" value="User">
+                    </div>
+                </div>
+                
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message received">
+                        Welcome to the chat! Connect to a server to start chatting.
+                        <div class="message-info">System • Just now</div>
+                    </div>
+                </div>
+                
+                <div class="chat-input">
+                    <input type="text" id="message-input" placeholder="Type your message here..." autocomplete="off" disabled>
+                    <button id="send-button" disabled>Send</button>
+                </div>
             </div>
-            
-            <div class="typing-indicator" id="typing-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-        </div>
-        
-        <div class="chat-input">
-            <input type="text" id="message-input" placeholder="Type your message here..." autocomplete="off">
-            <button id="send-button">Send</button>
         </div>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const messageInput = document.getElementById('message-input');
-            const sendButton = document.getElementById('send-button');
-            const chatMessages = document.getElementById('chat-messages');
-            const typingIndicator = document.getElementById('typing-indicator');
-            const usernameInput = document.getElementById('username-input');
-            
-            let username = usernameInput.value || "User";
-            let chatId = 'multi-window-chat';
-            let lastMessageId = 0;
-            
-            // Function to generate a unique ID
-            function generateId() {
-                return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        // Server variables
+        let express;
+        let WebSocket;
+        let http;
+        let server;
+        let wss;
+        let clients = new Set();
+        let serverRunning = false;
+        
+        // Client variables
+        let wsClient;
+        let username = "User";
+        let connected = false;
+        
+        // DOM elements
+        const startServerBtn = document.getElementById('start-server');
+        const stopServerBtn = document.getElementById('stop-server');
+        const serverStatus = document.getElementById('server-status');
+        const serverUrl = document.getElementById('server-url');
+        const serverLog = document.getElementById('server-log');
+        const usernameInput = document.getElementById('username-input');
+        const chatMessages = document.getElementById('chat-messages');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        
+        // Initialize the application
+        function initialize() {
+            // Load required modules
+            if (typeof require !== 'undefined') {
+                express = require('express');
+                WebSocket = require('ws');
+                http = require('http');
+                setupServerControls();
+            } else {
+                logMessage("This application requires Node.js to run the server.");
+                startServerBtn.disabled = true;
             }
             
-            // Function to add a message to the chat
-            function addMessage(text, sender, isCurrentUser = false) {
-                const messageDiv = document.createElement('div');
-                messageDiv.classList.add('message');
-                messageDiv.classList.add(isCurrentUser ? 'sent' : 'received');
-                
-                const now = new Date();
-                const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                
-                messageDiv.innerHTML = `
-                    ${text}
-                    <div class="message-info">${sender} • ${timeString}</div>
-                `;
-                
-                chatMessages.insertBefore(messageDiv, typingIndicator);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
+            setupClientControls();
+        }
+        
+        // Server controls
+        function setupServerControls() {
+            startServerBtn.addEventListener('click', startServer);
+            stopServerBtn.addEventListener('click', stopServer);
+        }
+        
+        function startServer() {
+            const app = express();
+            server = http.createServer(app);
             
-            // Function to send a message
-            function sendMessage() {
-                const messageText = messageInput.value.trim();
-                
-                if (messageText) {
-                    const messageId = generateId();
-                    const message = {
-                        id: messageId,
-                        text: messageText,
-                        sender: username,
-                        timestamp: new Date().getTime()
-                    };
-                    
-                    // Store the message in localStorage
-                    localStorage.setItem(chatId + '-message-' + messageId, JSON.stringify(message));
-                    
-                    // Trigger storage event for other windows
-                    localStorage.setItem(chatId + '-trigger', messageId);
-                    
-                    // Add to current window
-                    addMessage(messageText, username, true);
-                    
-                    // Clear input
-                    messageInput.value = '';
-                    
-                    // Update last message ID
-                    lastMessageId = messageId;
-                }
-            }
+            // Serve static files from current directory
+            app.use(express.static('.'));
             
-            // Function to check for new messages
-            function checkForNewMessages() {
-                let foundNew = false;
+            // Create WebSocket server
+            wss = new WebSocket.Server({ server });
+            
+            wss.on('connection', (ws) => {
+                clients.add(ws);
+                logMessage("New client connected");
                 
-                // Check all message keys in localStorage
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
+                ws.on('message', (message) => {
+                    logMessage(`Received: ${message}`);
                     
-                    if (key.startsWith(chatId + '-message-')) {
-                        const messageId = key.split('-message-')[1];
-                        
-                        // If this is a new message we haven't seen
-                        if (messageId > lastMessageId) {
-                            const message = JSON.parse(localStorage.getItem(key));
-                            
-                            // Only show if not sent by current user
-                            if (message.sender !== username) {
-                                addMessage(message.text, message.sender, false);
-                                foundNew = true;
-                            }
-                            
-                            // Update last message ID
-                            if (messageId > lastMessageId) {
-                                lastMessageId = messageId;
-                            }
+                    // Broadcast to all clients except sender
+                    clients.forEach((client) => {
+                        if (client !== ws && client.readyState === WebSocket.OPEN) {
+                            client.send(message);
+                        }
+                    });
+                });
+                
+                ws.on('close', () => {
+                    clients.delete(ws);
+                    logMessage("Client disconnected");
+                });
+            });
+            
+            // Start the server
+            const PORT = 3000;
+            server.listen(PORT, () => {
+                serverRunning = true;
+                updateServerUI();
+                logMessage(`Server running on port ${PORT}`);
+                
+                // Get local IP address
+                const os = require('os');
+                const interfaces = os.networkInterfaces();
+                let ipAddress = 'localhost';
+                
+                for (const name of Object.keys(interfaces)) {
+                    for (const iface of interfaces[name]) {
+                        if (iface.family === 'IPv4' && !iface.internal) {
+                            ipAddress = iface.address;
+                            break;
                         }
                     }
                 }
                 
-                return foundNew;
-            }
-            
-            // Event listener for localStorage changes
-            window.addEventListener('storage', function(event) {
-                if (event.key === chatId + '-trigger') {
-                    checkForNewMessages();
-                }
+                serverUrl.value = `http://${ipAddress}:${PORT}`;
             });
-            
-            // Event listeners
+        }
+        
+        function stopServer() {
+            if (server) {
+                server.close(() => {
+                    serverRunning = false;
+                    updateServerUI();
+                    logMessage("Server stopped");
+                    
+                    // Close all client connections
+                    clients.forEach(client => client.close());
+                    clients.clear();
+                });
+            }
+        }
+        
+        function updateServerUI() {
+            if (serverRunning) {
+                serverStatus.textContent = "Status: Running";
+                serverStatus.style.color = "#4CAF50";
+                startServerBtn.disabled = true;
+                stopServerBtn.disabled = false;
+            } else {
+                serverStatus.textContent = "Status: Not running";
+                serverStatus.style.color = "#f44336";
+                startServerBtn.disabled = false;
+                stopServerBtn.disabled = true;
+            }
+        }
+        
+        function logMessage(message) {
+            const now = new Date();
+            const timestamp = now.toLocaleTimeString();
+            serverLog.innerHTML += `[${timestamp}] ${message}\n`;
+            serverLog.scrollTop = serverLog.scrollHeight;
+        }
+        
+        // Client controls
+        function setupClientControls() {
+            usernameInput.addEventListener('change', updateUsername);
             sendButton.addEventListener('click', sendMessage);
-            
-            messageInput.addEventListener('keypress', function(e) {
+            messageInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     sendMessage();
                 }
             });
             
-            usernameInput.addEventListener('change', function() {
-                username = usernameInput.value || "User";
-            });
+            // Connect to server button functionality
+            document.getElementById('connect-client').addEventListener('click', connectToServer);
+        }
+        
+        function updateUsername() {
+            username = usernameInput.value || "User";
+        }
+        
+        function connectToServer() {
+            const serverAddress = document.getElementById('server-address').value;
             
-            // Initial focus on the input
-            messageInput.focus();
+            if (!serverAddress) {
+                addSystemMessage("Please enter a server address");
+                return;
+            }
             
-            // Check for messages every second
-            setInterval(checkForNewMessages, 1000);
+            // Create WebSocket connection
+            wsClient = new WebSocket(`ws://${serverAddress.replace(/^http:\/\//, '')}`);
             
-            // Initial check for existing messages
-            checkForNewMessages();
-        });
+            wsClient.onopen = () => {
+                connected = true;
+                updateConnectionStatus();
+                addSystemMessage("Connected to server");
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+            };
+            
+            wsClient.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    addMessage(message.text, message.sender, false);
+                } catch (e) {
+                    console.error("Error parsing message:", e);
+                }
+            };
+            
+            wsClient.onclose = () => {
+                connected = false;
+                updateConnectionStatus();
+                addSystemMessage("Disconnected from server");
+                messageInput.disabled = true;
+                sendButton.disabled = true;
+            };
+            
+            wsClient.onerror = (error) => {
+                addSystemMessage(`Connection error: ${error.message}`);
+            };
+        }
+        
+        function updateConnectionStatus() {
+            const statusElement = document.getElementById('connection-status');
+            if (connected) {
+                statusElement.textContent = "Connected";
+                statusElement.className = "connection-status connected";
+            } else {
+                statusElement.textContent = "Disconnected";
+                statusElement.className = "connection-status disconnected";
+            }
+        }
+        
+        function sendMessage() {
+            const messageText = messageInput.value.trim();
+            
+            if (messageText && wsClient && wsClient.readyState === WebSocket.OPEN) {
+                const message = {
+                    text: messageText,
+                    sender: username,
+                    timestamp: new Date().getTime()
+                };
+                
+                wsClient.send(JSON.stringify(message));
+                addMessage(messageText, username, true);
+                messageInput.value = '';
+            }
+        }
+        
+        function addMessage(text, sender, isCurrentUser) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+            messageDiv.classList.add(isCurrentUser ? 'sent' : 'received');
+            
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            messageDiv.innerHTML = `
+                ${text}
+                <div class="message-info">${sender} • ${timeString}</div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function addSystemMessage(text) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', 'received');
+            
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            messageDiv.innerHTML = `
+                ${text}
+                <div class="message-info">System • ${timeString}</div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Start the application
+        initialize();
     </script>
 </body>
 </html>
