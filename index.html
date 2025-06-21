@@ -223,21 +223,30 @@
         </div>
     </div>
 
-    <script>
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyB6XU5Jh3Xq3QY9XQ9XQ9XQ9XQ9XQ9XQ9X",
-            authDomain: "github-pages-chat.firebaseapp.com",
-            databaseURL: "https://github-pages-chat-default-rtdb.firebaseio.com",
-            projectId: "github-pages-chat",
-            storageBucket: "github-pages-chat.appspot.com",
-            messagingSenderId: "123456789012",
-            appId: "1:123456789012:web:abcdef1234567890abcdef"
-        };
+    <script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyC0mh6tNgjl4VV8c5LJcQ_P-NNV_VAsuAQ",
+    authDomain: "chatting-2a21a.firebaseapp.com",
+    projectId: "chatting-2a21a",
+    storageBucket: "chatting-2a21a.firebasestorage.app",
+    messagingSenderId: "1033924503308",
+    appId: "1:1033924503308:web:d0569e6c14892d55258b29",
+    measurementId: "G-5C28HN4CJG"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+
         
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
         
         // DOM elements
         const usernameInput = document.getElementById('username-input');
